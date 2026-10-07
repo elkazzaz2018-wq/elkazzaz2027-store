@@ -62,7 +62,7 @@
     <!-- Main Content Container -->
     <main class="container mx-auto px-4 py-6 flex-grow">
 
-        <!-- 1. POS TAB (Invoice on top, Products below) -->
+        <!-- 1. POS TAB -->
         <div id="tab-pos" class="tab-content active space-y-6">
             <!-- فاتورة البيع الحالية في الأعلى -->
             <div class="bg-white p-4 rounded-xl shadow border-2 border-pink-200">
@@ -96,11 +96,20 @@
                 </div>
             </div>
 
-            <!-- منتجات التجميل والعطور في الأسفل -->
-            <div class="bg-white p-4 rounded-xl shadow">
-                <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
-                    <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i class="fa-solid fa-basket-shopping text-pink-600"></i> منتجات التجميل والعطور (انقر للإضافة للفاتورة)</h2>
-                    <input type="text" id="pos-search" oninput="filterPOSProducts()" placeholder="ابحث باسم المنتج، الماركة، أو القسم..." class="w-full sm:w-72 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500">
+            <!-- حقل جاهز لجهاز الباركود والبحث والمنتجات -->
+            <div class="bg-white p-4 rounded-xl shadow space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
+                    <div class="relative w-full sm:w-1/2">
+                        <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <input type="text" id="pos-search" oninput="filterPOSProducts()" placeholder="ابحث باسم المنتج، أو الماركة..." class="w-full pr-10 pl-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500">
+                    </div>
+                    <!-- حقل خاص بجهاز الباركود (نشط دائماً لاستقبال القراءة السريعة) -->
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <div class="relative w-full sm:w-72">
+                            <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-pink-600"><i class="fa-solid fa-barcode"></i></span>
+                            <input type="text" id="barcode-scanner-input" placeholder="امرّر جهاز الباركود هنا..." onkeypress="handleBarcodeKeypress(event)" class="w-full pr-10 pl-3 py-2 border-2 border-pink-400 bg-pink-50 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-pink-600">
+                        </div>
+                    </div>
                 </div>
                 <div id="pos-products-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-[400px] overflow-y-auto p-1"></div>
             </div>
@@ -266,7 +275,7 @@
 
         <!-- 7. ANNUAL AUDIT & REPORTS TAB -->
         <div id="tab-annual-audit" class="tab-content">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6"> مؤشر الجرد
                 <div class="bg-white p-4 rounded-xl shadow border-r-4 border-purple-500">
                     <h3 class="text-gray-500 text-sm">إجمالي أصناف المخزون</h3>
                     <p id="audit-total-items" class="text-2xl font-bold text-gray-800 mt-2">0</p>
@@ -343,6 +352,11 @@
             } else {
                 adminElements.forEach(el => el.style.display = 'block');
             }
+            // التركيز التلقائي على حقل الباركود عند فتح الشاشة
+            setTimeout(() => {
+                let barcodeInput = document.getElementById('barcode-scanner-input');
+                if(barcodeInput) barcodeInput.focus();
+            }, 300);
         }
 
         function logout() {
@@ -462,6 +476,12 @@
             activeBtn.classList.remove('text-gray-600', 'hover:bg-pink-50');
             if(tabId === 'reports') updateReports();
             if(tabId === 'annual-audit') renderAnnualAudit();
+            if(tabId === 'pos') {
+                setTimeout(() => {
+                    let barcodeInput = document.getElementById('barcode-scanner-input');
+                    if(barcodeInput) barcodeInput.focus();
+                }, 200);
+            }
         }
 
         function renderAll() {
@@ -478,7 +498,8 @@
         function renderPOSProducts(filter = '') {
             const grid = document.getElementById('pos-products-grid');
             grid.innerHTML = '';
-            db.products.filter(p => p.name.includes(filter) || p.brand.includes(filter) || p.category.includes(filter)).forEach(p => {
+            let term = filter.toLowerCase();
+            db.products.filter(p => p.name.toLowerCase().includes(term) || p.brand.toLowerCase().includes(term) || p.category.toLowerCase().includes(term) || p.id.toString().includes(term)).forEach(p => {
                 grid.innerHTML += `
                     <div onclick="addToCart(${p.id})" class="p-3 border rounded-lg cursor-pointer hover:border-pink-500 hover:bg-pink-50 transition flex flex-col justify-between">
                         <div>
@@ -499,9 +520,27 @@
             renderPOSProducts(document.getElementById('pos-search').value);
         }
 
+        // معالجة قراءة الباركود التلقائية عند الضغط على Enter من جهاز الباركود
+        function handleBarcodeKeypress(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                let code = document.getElementById('barcode-scanner-input').value.trim();
+                if (!code) return;
+
+                let product = db.products.find(p => p.id.toString() === code || p.name.toLowerCase().includes(code.toLowerCase()) || p.brand.toLowerCase().includes(code.toLowerCase()));
+                if (product) {
+                    addToCart(product.id);
+                    document.getElementById('barcode-scanner-input').value = '';
+                } else {
+                    alert('لم يتم العثور على منتج بهذا الباركود!');
+                    document.getElementById('barcode-scanner-input').select();
+                }
+            }
+        }
+
         function addToCart(productId) {
             const product = db.products.find(p => p.id === productId);
-            if(product.qty <= 0) { alert('عذراً، هذا المنتج نفد من المخزن!'); return; }
+            if(!product || product.qty <= 0) { alert('عذراً، هذا المنتج نفد من المخزن!'); return; }
             let item = db.cart.find(i => i.id === productId);
             if(item) {
                 if(item.qty < product.qty) item.qty++;
@@ -510,6 +549,9 @@
                 db.cart.push({ id: product.id, name: product.name, price: product.sell, buyPrice: product.buy, qty: 1 });
             }
             renderCart();
+            // إعادة التركيز على حقل الباركود ليكون جاهزاً للمنتج التالي فوراً
+            let barcodeInput = document.getElementById('barcode-scanner-input');
+            if(barcodeInput) barcodeInput.focus();
         }
 
         function renderCart() {
@@ -576,6 +618,8 @@
             document.getElementById('cart-discount').value = 0;
             saveData();
             alert('تمت عملية البيع بنجاح وتسجيل التاريخ!');
+            let barcodeInput = document.getElementById('barcode-scanner-input');
+            if(barcodeInput) barcodeInput.focus();
         }
 
         function saveProduct(e) {
@@ -764,7 +808,14 @@
             });
         }
 
-        window.onload = renderAll;
+        window.onload = function() {
+            renderAll();
+            // التركيز التلقائي على حقل الباركود عند التحميل
+            setTimeout(() => {
+                let barcodeInput = document.getElementById('barcode-scanner-input');
+                if(barcodeInput) barcodeInput.focus();
+            }, 300);
+        };
     </script>
 </body>
 </html>
