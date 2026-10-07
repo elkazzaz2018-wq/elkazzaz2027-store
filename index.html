@@ -223,7 +223,7 @@
             </div>
         </div>
 
-        <!-- 6. REPORTS & BACKUP TAB -->
+        <!-- 6. REPORTS & BACKUP TAB (Includes Legacy Import) -->
         <div id="tab-reports" class="tab-content">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div class="bg-white p-4 rounded-xl shadow">
@@ -237,14 +237,19 @@
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow flex flex-col justify-between">
                     <div>
-                        <h3 class="text-md font-bold text-gray-800 mb-4"><i class="fa-solid fa-shield-halved text-pink-600"></i> إدارة النسخ الاحتياطي والأمان</h3>
-                        <p class="text-xs text-gray-500 mb-4">قم بحفظ نسخة احتياطية لبيانات المحل بانتظام على جهازك، أو استعد البيانات في أي وقت.</p>
+                        <h3 class="text-md font-bold text-gray-800 mb-4"><i class="fa-solid fa-shield-halved text-pink-600"></i> إدارة البيانات والنسخ الاحتياطي</h3>
+                        <p class="text-xs text-gray-500 mb-4">احفظ نسختك الاحتياطية بانتظام، أو استورد بيانات منتجاتك القديمة بضغطة زر.</p>
                     </div>
-                    <div class="space-y-3">
-                        <button onclick="exportBackup()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm transition flex items-center justify-center gap-2"><i class="fa-solid fa-download"></i> تصدير نسخة احتياطية (Backup)</button>
-                        <label class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm transition flex items-center justify-center gap-2 cursor-pointer">
-                            <i class="fa-solid fa-upload"></i> استعادة النسخة الاحتياطية
+                    <div class="space-y-2">
+                        <button onclick="exportBackup()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-sm transition flex items-center justify-center gap-2"><i class="fa-solid fa-download"></i> تصدير نسخة احتياطية</button>
+                        <label class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-sm transition flex items-center justify-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-upload"></i> استعادة نسخة احتياطية
                             <input type="file" id="backup-file" accept=".json" onchange="importBackup(event)" class="hidden">
+                        </label>
+                        <!-- زر استيراد من برنامج قديم -->
+                        <label class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-lg text-sm transition flex items-center justify-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-file-arrow-down"></i> استيراد منتجات من برنامج قديم (JSON/CSV)
+                            <input type="file" id="legacy-file" accept=".json,.csv" onchange="importLegacyData(event)" class="hidden">
                         </label>
                     </div>
                 </div>
@@ -255,7 +260,7 @@
             </div>
         </div>
 
-        <!-- 7. ANNUAL AUDIT & REPORTS TAB (New) -->
+        <!-- 7. ANNUAL AUDIT & REPORTS TAB -->
         <div id="tab-annual-audit" class="tab-content">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div class="bg-white p-4 rounded-xl shadow border-r-4 border-purple-500">
@@ -378,6 +383,64 @@
                     }
                 } catch (err) {
                     alert('حدث خطأ أثناء قراءة الملف.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // دالة استيراد بيانات برنامج المبيعات القديم
+        function importLegacyData(event) {
+            let file = event.target.files[0];
+            if (!file) return;
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                let content = e.target.result;
+                try {
+                    if (file.name.endsWith('.json')) {
+                        let parsed = JSON.parse(content);
+                        let items = Array.isArray(parsed) ? parsed : (parsed.products || []);
+                        let addedCount = 0;
+                        items.forEach(item => {
+                            db.products.push({
+                                id: Date.now() + Math.random(),
+                                name: item.name || item.ProductName || 'منتج مستورد',
+                                brand: item.brand || item.Brand || 'عام',
+                                category: item.category || item.Category || 'مكياج',
+                                buy: parseFloat(item.buy || item.BuyPrice || item.cost || 0),
+                                sell: parseFloat(item.sell || item.SellPrice || item.price || 0),
+                                qty: parseInt(item.qty || item.Quantity || item.stock || 10),
+                                exp: item.exp || item.ExpiryDate || 'غير محدد'
+                            });
+                            addedCount++;
+                        });
+                        saveData();
+                        alert(`تم بنجاح استيراد وإضافة ${addedCount} منتجاً من البرنامج القديم للمخزن!`);
+                    } else if (file.name.endsWith('.csv')) {
+                        let lines = content.split('\n');
+                        let addedCount = 0;
+                        for (let i = 1; i < lines.length; i++) {
+                            let line = lines[i].trim();
+                            if (!line) continue;
+                            let cols = line.split(',');
+                            if (cols.length >= 4) {
+                                db.products.push({
+                                    id: Date.now() + Math.random(),
+                                    name: cols[0].trim(),
+                                    brand: cols[1] ? cols[1].trim() : 'عام',
+                                    category: 'مكياج',
+                                    buy: parseFloat(cols[2]) || 0,
+                                    sell: parseFloat(cols[3]) || 0,
+                                    qty: parseInt(cols[4]) || 10,
+                                    exp: 'غير محدد'
+                                });
+                                addedCount++;
+                            }
+                        }
+                        saveData();
+                        alert(`تم بنجاح استيراد ${addedCount} منتجاً من ملف الـ CSV للبرنامج القديم!`);
+                    }
+                } catch (err) {
+                    alert('تعذر استيراد الملف، تأكد من صحة تنسيق الملف (JSON أو CSV).');
                 }
             };
             reader.readAsText(file);
@@ -650,9 +713,7 @@
             });
         }
 
-        // حساب وإظهار الجرد السنوي والتقارير السنوية
         function renderAnnualAudit() {
-            // 1. الجرد السنوي للمخزون
             let totalItems = db.products.reduce((sum, p) => sum + p.qty, 0);
             let totalBuyValue = db.products.reduce((sum, p) => sum + (p.buy * p.qty), 0);
             let totalSellValue = db.products.reduce((sum, p) => sum + (p.sell * p.qty), 0);
@@ -661,11 +722,8 @@
             document.getElementById('audit-buy-value').innerText = totalBuyValue.toFixed(2) + ' ج.م';
             document.getElementById('audit-sell-value').innerText = totalSellValue.toFixed(2) + ' ج.م';
 
-            // 2. التقارير السنوية (تجميع حسب السنة من تواريخ المبيعات والمصروفات)
             let yearlyData = {};
-
             db.sales.forEach(sale => {
-                // استخراج السنة من نص التاريخ
                 let yearMatch = sale.date.match(/\d{4}/);
                 let year = yearMatch ? yearMatch[0] : new Date().getFullYear().toString();
                 if (!yearlyData[year]) yearlyData[year] = { sales: 0, cost: 0, expenses: 0 };
@@ -682,7 +740,6 @@
 
             const tbody = document.getElementById('annual-reports-tbody');
             tbody.innerHTML = '';
-
             let years = Object.keys(yearlyData);
             if (years.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-400">لا توجد بيانات سنوية مسجلة بعد</td></tr>`;
