@@ -329,7 +329,7 @@
             products: JSON.parse(localStorage.getItem('qazzaz_products')) || [
                 { id: 1, name: 'سيروم فيتامين سي', brand: 'The Ordinary', category: 'عناية بالبشرة', buy: 150, sell: 220, qty: 12, exp: '2027-05-10' },
                 { id: 2, name: 'أحمر شفاه مات', brand: 'MAC', category: 'مكياج', buy: 80, sell: 130, qty: 20, exp: '2028-01-15' },
-                { id: 3, name: 'عطر فخم نسائي', brand: 'Gucci', buy: 400, sell: 650, qty: 5, exp: '2029-12-01' }
+                { id: 3, name: 'عطر فخم نسائي', brand: 'Gucci', category: 'عطور', buy: 400, sell: 650, qty: 5, exp: '2029-12-01' }
             ],
             cart: [],
             purchases: JSON.parse(localStorage.getItem('qazzaz_purchases')) || [],
@@ -340,11 +340,15 @@
         function loginAs(role) {
             if(role === 'admin') {
                 let pass = prompt('أدخل كلمة سر المدير:');
-                if(pass !== '16666') { alert('كلمة السر غير صحيحة!'); return; }
+                if(pass !== '1234') { alert('كلمة السر غير صحيحة!'); return; }
             }
             checkDeviceLock(role);
             currentRole = role;
-            document.getElementById('login-screen').style.display = 'none';
+            
+            // إخفاء شاشة تسجيل الدخول فوراً
+            let loginScreen = document.getElementById('login-screen');
+            if(loginScreen) loginScreen.style.setProperty('display', 'none', 'important');
+
             document.getElementById('user-role-badge').innerText = role === 'admin' ? 'صلاحية: مدير (إدارة وتقارير)' : 'صلاحية: بائع (مبيعات فقط)';
             
             const adminElements = document.querySelectorAll('.admin-only');
@@ -353,6 +357,7 @@
                 switchTab('pos');
             } else {
                 adminElements.forEach(el => el.style.display = 'block');
+                switchTab('pos');
             }
             setTimeout(() => {
                 let barcodeInput = document.getElementById('barcode-scanner-input');
@@ -362,7 +367,8 @@
 
         function logout() {
             currentRole = null;
-            document.getElementById('login-screen').style.display = 'flex';
+            let loginScreen = document.getElementById('login-screen');
+            if(loginScreen) loginScreen.style.display = 'flex';
         }
 
         function saveData() {
@@ -597,4 +603,254 @@
         function completeSale() {
             if(db.cart.length === 0) { alert('السلة فارغة!'); return; }
             let subtotal = db.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-            let discount
+            let discount = parseFloat(document.getElementById('cart-discount').value) || 0;
+            let total = Math.max(0, subtotal - discount);
+            let totalBuyCost = db.cart.reduce((sum, item) => sum + (item.buyPrice * item.qty), 0);
+
+            db.cart.forEach(item => {
+                let p = db.products.find(prod => prod.id === item.id);
+                if(p) p.qty -= item.qty;
+            });
+
+            db.sales.push({
+                date: new Date().toLocaleString('ar-EG'),
+                items: [...db.cart],
+                total: total,
+                buyCost: totalBuyCost
+            });
+
+            db.cart = [];
+            document.getElementById('cart-discount').value = 0;
+            saveData();
+            alert('تمت عملية البيع بنجاح وتسجيل التاريخ!');
+            let barcodeInput = document.getElementById('barcode-scanner-input');
+            if(barcodeInput) barcodeInput.focus();
+        }
+
+        function saveProduct(e) {
+            e.preventDefault();
+            db.products.push({
+                id: Date.now(),
+                name: document.getElementById('p-name').value,
+                brand: document.getElementById('p-brand').value,
+                category: document.getElementById('p-category').value,
+                buy: parseFloat(document.getElementById('p-buy').value),
+                sell: parseFloat(document.getElementById('p-sell').value),
+                qty: parseInt(document.getElementById('p-qty').value),
+                exp: document.getElementById('p-exp').value || 'غير محدد'
+            });
+            document.getElementById('product-form').reset();
+            saveData();
+        }
+
+        function renderInventory() {
+            const tbody = document.getElementById('inventory-table-body');
+            const select = document.getElementById('pur-product');
+            tbody.innerHTML = '';
+            select.innerHTML = '<option value="">اختر المنتج...</option>';
+            db.products.forEach(p => {
+                tbody.innerHTML += `
+                    <tr class="border-b">
+                        <td class="p-3 font-semibold">${p.name}</td>
+                        <td class="p-3"><span class="bg-pink-50 text-pink-700 px-2 py-1 rounded text-xs font-bold">${p.brand}</span></td>
+                        <td class="p-3 text-xs text-gray-600">${p.category}</td>
+                        <td class="p-3">${p.buy} ج.م</td>
+                        <td class="p-3">${p.sell} ج.م</td>
+                        <td class="p-3 font-bold">${p.qty}</td>
+                        <td class="p-3 text-gray-500 text-xs">${p.exp}</td>
+                        <td class="p-3"><button onclick="deleteProduct(${p.id})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button></td>
+                    </tr>
+                `;
+                select.innerHTML += `<option value="${p.id}">${p.name} (${p.brand})</option>`;
+            });
+        }
+
+        function renderSalesLog() {
+            const tbody = document.getElementById('sales-log-table-body');
+            tbody.innerHTML = '';
+            if(db.sales.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-gray-400">لا توجد عمليات بيع مسجلة حتى الآن</td></tr>`;
+                return;
+            }
+            db.sales.slice().reverse().forEach(sale => {
+                let itemsList = sale.items.map(i => `${i.name} (عدد: ${i.qty})`).join('، ');
+                tbody.innerHTML += `
+                    <tr class="border-b">
+                        <td class="p-3 font-semibold text-pink-600 text-xs">${sale.date}</td>
+                        <td class="p-3 text-sm text-gray-700">${itemsList}</td>
+                        <td class="p-3 font-bold text-gray-900">${sale.total.toFixed(2)} ج.م</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function deleteProduct(id) {
+            if(confirm('هل أنت متأكد من حذف هذا المنتج؟')) {
+                db.products = db.products.filter(p => p.id !== id);
+                saveData();
+            }
+        }
+
+        function savePurchase(e) {
+            e.preventDefault();
+            let prodId = parseInt(document.getElementById('pur-product').value);
+            let qty = parseInt(document.getElementById('pur-qty').value);
+            let cost = parseFloat(document.getElementById('pur-cost').value);
+            let product = db.products.find(p => p.id === prodId);
+            if(product) product.qty += qty;
+            db.purchases.push({ date: new Date().toLocaleDateString('ar-EG'), productName: product.name, qty: qty, cost: cost });
+            document.getElementById('pur-product').value = '';
+            document.getElementById('pur-qty').value = '';
+            document.getElementById('pur-cost').value = '';
+            saveData();
+        }
+
+        function renderPurchases() {
+            const tbody = document.getElementById('purchases-table-body');
+            tbody.innerHTML = '';
+            db.purchases.forEach(pur => {
+                tbody.innerHTML += `<tr class="border-b"><td class="p-3">${pur.date}</td><td class="p-3">${pur.productName}</td><td class="p-3">${pur.qty}</td><td class="p-3">${pur.cost} ج.م</td></tr>`;
+            });
+        }
+
+        function saveExpense(e) {
+            e.preventDefault();
+            db.expenses.push({
+                id: Date.now(),
+                date: new Date().toLocaleDateString('ar-EG'),
+                title: document.getElementById('exp-title').value,
+                amount: parseFloat(document.getElementById('exp-amount').value)
+            });
+            document.getElementById('exp-title').value = '';
+            document.getElementById('exp-amount').value = '';
+            saveData();
+        }
+
+        function renderExpenses() {
+            const tbody = document.getElementById('expenses-table-body');
+            tbody.innerHTML = '';
+            if(db.expenses.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-400">لا توجد مصروفات مسجلة حتى الآن</td></tr>`;
+                return;
+            }
+            db.expenses.forEach(exp => {
+                let expId = exp.id || exp.title;
+                tbody.innerHTML += `
+                    <tr class="border-b">
+                        <td class="p-3">${exp.date}</td>
+                        <td class="p-3 font-semibold">${exp.title}</td>
+                        <td class="p-3 text-red-600 font-bold">${exp.amount} ج.م</td>
+                        <td class="p-3 flex gap-3">
+                            <button onclick="editExpense(${expId})" class="text-blue-500 hover:text-blue-700" title="تعديل"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteExpense(${expId})" class="text-red-500 hover:text-red-700" title="حذف"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        function deleteExpense(id) {
+            if(confirm('هل أنت متأكد من حذف هذا المصروف؟')) {
+                db.expenses = db.expenses.filter(e => (e.id ? e.id !== id : e.title !== id));
+                saveData();
+            }
+        }
+
+        function editExpense(id) {
+            let exp = db.expenses.find(e => (e.id ? e.id === id : e.title === id));
+            if(!exp) return;
+            let newTitle = prompt('تعديل بند المصروف:', exp.title);
+            if(newTitle === null) return;
+            let newAmount = prompt('تعديل مبلغ المصروف:', exp.amount);
+            if(newAmount === null) return;
+            
+            exp.title = newTitle.trim() || exp.title;
+            exp.amount = parseFloat(newAmount) || exp.amount;
+            saveData();
+        }
+
+        let financialChartInstance = null;
+        function updateFinancials() {
+            let totalSales = db.sales.reduce((sum, s) => sum + s.total, 0);
+            let totalExpenses = db.expenses.reduce((sum, e) => sum + e.amount, 0);
+            let cashDrawer = totalSales - totalExpenses;
+            document.getElementById('total-sales-box').innerText = totalSales.toFixed(2) + ' ج.م';
+            document.getElementById('total-expenses').innerText = totalExpenses.toFixed(2) + ' ج.م';
+            document.getElementById('cash-drawer').innerText = cashDrawer.toFixed(2) + ' ج.م';
+        }
+
+        function updateReports() {
+            let totalSales = db.sales.reduce((sum, s) => sum + s.total, 0);
+            let totalBuyCost = db.sales.reduce((sum, s) => sum + s.buyCost, 0);
+            let totalExpenses = db.expenses.reduce((sum, e) => sum + e.amount, 0);
+            let netProfit = totalSales - totalBuyCost - totalExpenses;
+
+            document.getElementById('rep-sales').innerText = totalSales.toFixed(2) + ' ج.م';
+            document.getElementById('rep-cost').innerText = totalBuyCost.toFixed(2) + ' ج.م';
+            document.getElementById('rep-expenses').innerText = totalExpenses.toFixed(2) + ' ج.م';
+            document.getElementById('rep-net').innerText = netProfit.toFixed(2) + ' ج.م';
+
+            const ctx = document.getElementById('financialChart').getContext('2d');
+            if(financialChartInstance) financialChartInstance.destroy();
+            financialChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['المبيعات', 'المصروفات'],
+                    datasets: [{ data: [totalSales, totalExpenses], backgroundColor: ['#ec4899', '#ef4444'] }]
+                }
+            });
+        }
+
+        function renderAnnualAudit() {
+            let totalItems = db.products.reduce((sum, p) => sum + p.qty, 0);
+            let totalBuyValue = db.products.reduce((sum, p) => sum + (p.buy * p.qty), 0);
+            let totalSellValue = db.products.reduce((sum, p) => sum + (p.sell * p.qty), 0);
+
+            document.getElementById('audit-total-items').innerText = totalItems;
+            document.getElementById('audit-buy-value').innerText = totalBuyValue.toFixed(2) + ' ج.م';
+            document.getElementById('audit-sell-value').innerText = totalSellValue.toFixed(2) + ' ج.م';
+
+            let yearlyData = {};
+            db.sales.forEach(sale => {
+                let yearMatch = sale.date.match(/\d{4}/);
+                let year = yearMatch ? yearMatch[0] : new Date().getFullYear().toString();
+                if (!yearlyData[year]) yearlyData[year] = { sales: 0, cost: 0, expenses: 0 };
+                yearlyData[year].sales += sale.total;
+                yearlyData[year].cost += sale.buyCost;
+            });
+
+            db.expenses.forEach(exp => {
+                let yearMatch = exp.date.match(/\d{4}/);
+                let year = yearMatch ? yearMatch[0] : new Date().getFullYear().toString();
+                if (!yearlyData[year]) yearlyData[year] = { sales: 0, cost: 0, expenses: 0 };
+                yearlyData[year].expenses += exp.amount;
+            });
+
+            const tbody = document.getElementById('annual-reports-tbody');
+            tbody.innerHTML = '';
+            let years = Object.keys(yearlyData);
+            if (years.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-400">لا توجد بيانات سنوية مسجلة بعد</td></tr>`;
+                return;
+            }
+
+            years.sort().reverse().forEach(year => {
+                let d = yearlyData[year];
+                let net = d.sales - d.cost - d.expenses;
+                tbody.innerHTML += `
+                    <tr class="border-b">
+                        <td class="p-3 font-bold text-pink-600">${year}</td>
+                        <td class="p-3 text-blue-600 font-semibold">${d.sales.toFixed(2)} ج.م</td>
+                        <td class="p-3 text-orange-600">${d.cost.toFixed(2)} ج.م</td>
+                        <td class="p-3 text-red-600">${d.expenses.toFixed(2)} ج.م</td>
+                        <td class="p-3 font-black text-gray-900">${net.toFixed(2)} ج.م</td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.onload = function() {
+            renderAll();
+        };
+    </script>
+</body>
+</html>
