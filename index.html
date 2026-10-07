@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- مكتبة Google Sign-In الرسمية -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
         body { font-family: 'Cairo', sans-serif; background-color: #fdf2f8; }
@@ -18,8 +20,8 @@
 
     <!-- Login Modal / Screen -->
     <div id="login-screen" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <div class="text-center mb-6">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl text-center">
+            <div class="mb-6">
                 <i class="fa-solid fa-wand-magic-sparkles text-pink-600 text-3xl mb-2"></i>
                 <h2 class="text-xl font-bold text-gray-800">القزاز للعطور ومستحضرات التجميل</h2>
                 <p class="text-xs text-gray-500 mt-1">اختر صلاحية الدخول للنظام</p>
@@ -28,9 +30,25 @@
                 <button onclick="loginAs('cashier')" class="w-full bg-pink-100 hover:bg-pink-200 text-pink-700 font-bold p-3 rounded-xl transition flex items-center justify-center gap-2">
                     <i class="fa-solid fa-cash-register"></i> الدخول كبائع (شاشة البيع فقط)
                 </button>
-                <button onclick="loginAs('admin')" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold p-3 rounded-xl transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-lock"></i> الدخول كمدير (إدارة وتقارير وجرد سنوي)
-                </button>
+                
+                <div class="border-t pt-4">
+                    <p class="text-xs text-gray-500 mb-3">دخول المدير (مربوط بحساب Gmail معتمد):</p>
+                    <!-- زر جوجل الرسمي لتسجيل الدخول -->
+                    <div id="g_id_onload"
+                         data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+                         data-callback="handleGoogleSignIn"
+                         data-auto_prompt="false">
+                    </div>
+                    <div class="flex justify-center">
+                        <div class="g_id_signin"
+                             data-type="standard"
+                             data-shape="pill"
+                             data-theme="outline"
+                             data-text="sign_in_with"
+                             data-locale="ar">
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -223,7 +241,7 @@
             </div>
         </div>
 
-        <!-- 6. REPORTS & BACKUP TAB (Includes Legacy Import) -->
+        <!-- 6. REPORTS & BACKUP TAB -->
         <div id="tab-reports" class="tab-content">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div class="bg-white p-4 rounded-xl shadow">
@@ -246,7 +264,6 @@
                             <i class="fa-solid fa-upload"></i> استعادة نسخة احتياطية
                             <input type="file" id="backup-file" accept=".json" onchange="importBackup(event)" class="hidden">
                         </label>
-                        <!-- زر استيراد من برنامج قديم -->
                         <label class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-lg text-sm transition flex items-center justify-center gap-2 cursor-pointer">
                             <i class="fa-solid fa-file-arrow-down"></i> استيراد منتجات من برنامج قديم (JSON/CSV)
                             <input type="file" id="legacy-file" accept=".json,.csv" onchange="importLegacyData(event)" class="hidden">
@@ -302,42 +319,48 @@
     <script>
         let currentRole = null;
 
-        function checkDeviceLock(role) {
-            let trustedDeviceToken = localStorage.getItem('qazzaz_device_token');
-            if (!trustedDeviceToken) {
-                trustedDeviceToken = 'DEV_' + Math.random().toString(36).substring(2) + Date.now();
-                localStorage.setItem('qazzaz_device_token', trustedDeviceToken);
-            }
-        }
-
-        let db = {
-            products: JSON.parse(localStorage.getItem('qazzaz_products')) || [
-                { id: 1, name: 'سيروم فيتامين سي', brand: 'The Ordinary', category: 'عناية بالبشرة', buy: 150, sell: 220, qty: 12, exp: '2027-05-10' },
-                { id: 2, name: 'أحمر شفاه مات', brand: 'MAC', category: 'مكياج', buy: 80, sell: 130, qty: 20, exp: '2028-01-15' },
-                { id: 3, name: 'عطر فخم نسائي', brand: 'Gucci', category: 'عطور', buy: 400, sell: 650, qty: 5, exp: '2029-12-01' }
-            ],
-            cart: [],
-            purchases: JSON.parse(localStorage.getItem('qazzaz_purchases')) || [],
-            expenses: JSON.parse(localStorage.getItem('qazzaz_expenses')) || [],
-            sales: JSON.parse(localStorage.getItem('qazzaz_sales')) || []
-        };
+        // **ضع بريدك الإلكتروني الخاص بالمدير هنا بين علامتي التنصيص**
+        const ADMIN_GMAIL = "your-email@gmail.com"; 
 
         function loginAs(role) {
             if(role === 'admin') {
-                let pass = prompt('أدخل كلمة سر المدير:');
-                if(pass !== '1234') { alert('كلمة السر غير صحيحة!'); return; }
+                alert('يرجى تسجيل الدخول باستخدام حساب Gmail المعتمد للمدير عبر زر جوجل أدناه.');
+                return;
             }
-            checkDeviceLock(role);
             currentRole = role;
             document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('user-role-badge').innerText = role === 'admin' ? 'صلاحية: مدير (إدارة وتقارير)' : 'صلاحية: بائع (مبيعات فقط)';
+            document.getElementById('user-role-badge').innerText = 'صلاحية: بائع (مبيعات فقط)';
             
             const adminElements = document.querySelectorAll('.admin-only');
-            if(role === 'cashier') {
-                adminElements.forEach(el => el.style.display = 'none');
-                switchTab('pos');
-            } else {
-                adminElements.forEach(el => el.style.display = 'block');
+            adminElements.forEach(el => el.style.display = 'none');
+            switchTab('pos');
+        }
+
+        // دالة استقبال بيانات حساب جوجل والتحقق من الإيميل
+        function handleGoogleSignIn(response) {
+            try {
+                let base64Url = response.credential.split('.')[1];
+                let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                
+                let userObject = JSON.parse(jsonPayload);
+                let userEmail = userObject.email;
+
+                if (userEmail.toLowerCase() === ADMIN_GMAIL.toLowerCase()) {
+                    currentRole = 'admin';
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('user-role-badge').innerText = `مدير: ${userEmail}`;
+                    
+                    const adminElements = document.querySelectorAll('.admin-only');
+                    adminElements.forEach(el => el.style.display = 'block');
+                    switchTab('reports');
+                } else {
+                    alert(`عذراً، البريد (${userEmail}) غير مصرح له بالدخول كمدير لهذا المحل!`);
+                }
+            } catch (err) {
+                alert('حدث خطأ أثناء التحقق من حساب جوجل.');
             }
         }
 
@@ -345,6 +368,18 @@
             currentRole = null;
             document.getElementById('login-screen').style.display = 'flex';
         }
+
+        let db = {
+            products: JSON.parse(localStorage.getItem('qazzaz_products')) || [
+                { id: 1, name: 'سيروم فيتامين سي', brand: 'The Ordinary', category: 'عناية بالبشرة', buy: 150, sell: 220, qty: 12, exp: '2027-05-10' },
+                { id: 2, name: 'أحمر شفاه مات', brand: 'MAC', category: 'مكياج', buy: 80, sell: 130, qty: 20, exp: '2028-01-15' },
+                { id: 3, name: 'عطر فخم نسائي', brand: 'Gucci', buy: 400, sell: 650, qty: 5, exp: '2029-12-01' }
+            ],
+            cart: [],
+            purchases: JSON.parse(localStorage.getItem('qazzaz_purchases')) || [],
+            expenses: JSON.parse(localStorage.getItem('qazzaz_expenses')) || [],
+            sales: JSON.parse(localStorage.getItem('qazzaz_sales')) || []
+        };
 
         function saveData() {
             localStorage.setItem('qazzaz_products', JSON.stringify(db.products));
@@ -377,18 +412,17 @@
                         db.expenses = importedData.expenses || [];
                         db.sales = importedData.sales || [];
                         saveData();
-                        alert('تمت استعادة النسخة الاحتياطية بنجاح وتحديث بيانات المحل!');
+                        alert('تمت استعادة النسخة الاحتياطية بنجاح!');
                     } else {
                         alert('ملف النسخة الاحتياطية غير صالح!');
                     }
                 } catch (err) {
-                    alert('حدث خطأ أثناء قراءة الملف.');
+                    alert('خطأ في قراءة الملف.');
                 }
             };
             reader.readAsText(file);
         }
 
-        // دالة استيراد بيانات برنامج المبيعات القديم
         function importLegacyData(event) {
             let file = event.target.files[0];
             if (!file) return;
@@ -403,44 +437,21 @@
                         items.forEach(item => {
                             db.products.push({
                                 id: Date.now() + Math.random(),
-                                name: item.name || item.ProductName || 'منتج مستورد',
+                                name: item.name || item.ProductName || 'منتج',
                                 brand: item.brand || item.Brand || 'عام',
                                 category: item.category || item.Category || 'مكياج',
-                                buy: parseFloat(item.buy || item.BuyPrice || item.cost || 0),
-                                sell: parseFloat(item.sell || item.SellPrice || item.price || 0),
-                                qty: parseInt(item.qty || item.Quantity || item.stock || 10),
-                                exp: item.exp || item.ExpiryDate || 'غير محدد'
+                                buy: parseFloat(item.buy || item.BuyPrice || 0),
+                                sell: parseFloat(item.sell || item.SellPrice || 0),
+                                qty: parseInt(item.qty || item.Quantity || 10),
+                                exp: item.exp || 'غير محدد'
                             });
                             addedCount++;
                         });
                         saveData();
-                        alert(`تم بنجاح استيراد وإضافة ${addedCount} منتجاً من البرنامج القديم للمخزن!`);
-                    } else if (file.name.endsWith('.csv')) {
-                        let lines = content.split('\n');
-                        let addedCount = 0;
-                        for (let i = 1; i < lines.length; i++) {
-                            let line = lines[i].trim();
-                            if (!line) continue;
-                            let cols = line.split(',');
-                            if (cols.length >= 4) {
-                                db.products.push({
-                                    id: Date.now() + Math.random(),
-                                    name: cols[0].trim(),
-                                    brand: cols[1] ? cols[1].trim() : 'عام',
-                                    category: 'مكياج',
-                                    buy: parseFloat(cols[2]) || 0,
-                                    sell: parseFloat(cols[3]) || 0,
-                                    qty: parseInt(cols[4]) || 10,
-                                    exp: 'غير محدد'
-                                });
-                                addedCount++;
-                            }
-                        }
-                        saveData();
-                        alert(`تم بنجاح استيراد ${addedCount} منتجاً من ملف الـ CSV للبرنامج القديم!`);
+                        alert(`تم استيراد ${addedCount} منتجاً بنجاح!`);
                     }
                 } catch (err) {
-                    alert('تعذر استيراد الملف، تأكد من صحة تنسيق الملف (JSON أو CSV).');
+                    alert('تعذر استيراد الملف.');
                 }
             };
             reader.readAsText(file);
