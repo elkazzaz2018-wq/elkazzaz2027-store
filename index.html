@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>القزاز للعطور ومستحضرات التجميل ادارة م /ابراهيم القزاز</title>
+    <title>القزاز للعطور ومستحضرات التجميل</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -62,19 +62,13 @@
     <!-- Main Content Container -->
     <main class="container mx-auto px-4 py-6 flex-grow">
 
-        <!-- 1. POS TAB -->
-        <div id="tab-pos" class="tab-content active grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 bg-white p-4 rounded-xl shadow">
-                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-basket-shopping text-pink-600"></i> منتجات التجميل والعطور</h2>
-                <div class="mb-4">
-                    <input type="text" id="pos-search" oninput="filterPOSProducts()" placeholder="ابحث باسم المنتج، الماركة، أو القسم..." class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500">
-                </div>
-                <div id="pos-products-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[500px] overflow-y-auto p-1"></div>
-            </div>
-            <div class="bg-white p-4 rounded-xl shadow flex flex-col justify-between">
-                <div>
-                    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-receipt text-pink-600"></i> فاتورة البيع الحالية</h2>
-                    <div class="border rounded-lg overflow-hidden mb-4 max-h-[300px] overflow-y-auto">
+        <!-- 1. POS TAB (Invoice on top, Products below) -->
+        <div id="tab-pos" class="tab-content active space-y-6">
+            <!-- فاتورة البيع الحالية في الأعلى -->
+            <div class="bg-white p-4 rounded-xl shadow border-2 border-pink-200">
+                <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-receipt text-pink-600"></i> فاتورة البيع الحالية</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center">
+                    <div class="lg:col-span-3 border rounded-lg overflow-hidden max-h-[220px] overflow-y-auto">
                         <table class="w-full text-right text-sm">
                             <thead class="bg-gray-50 border-b">
                                 <tr>
@@ -88,16 +82,27 @@
                             <tbody id="cart-items"></tbody>
                         </table>
                     </div>
-                </div>
-                <div class="border-t pt-4">
-                    <div class="flex justify-between mb-2 text-sm"><span>المجموع الفرعي:</span><span id="cart-subtotal" class="font-bold">0.00 ج.م</span></div>
-                    <div class="flex justify-between mb-4 text-sm items-center">
-                        <span>خصم إضافي:</span>
-                        <input type="number" id="cart-discount" value="0" oninput="updateCartTotals()" class="w-20 px-2 py-1 border rounded text-left">
+                    <div class="bg-pink-50 p-4 rounded-xl flex flex-col justify-between h-full">
+                        <div>
+                            <div class="flex justify-between mb-2 text-sm"><span>المجموع:</span><span id="cart-subtotal" class="font-bold">0.00 ج.م</span></div>
+                            <div class="flex justify-between mb-3 text-sm items-center">
+                                <span>خصم:</span>
+                                <input type="number" id="cart-discount" value="0" oninput="updateCartTotals()" class="w-20 px-2 py-1 border rounded text-left">
+                            </div>
+                            <div class="flex justify-between mb-3 text-base font-extrabold text-pink-700"><span>الصافي:</span><span id="cart-total">0.00 ج.م</span></div>
+                        </div>
+                        <button onclick="completeSale()" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-2.5 rounded-lg shadow transition duration-200 flex items-center justify-center gap-2 text-sm"><i class="fa-solid fa-check-circle"></i> إتمام البيع</button>
                     </div>
-                    <div class="flex justify-between mb-4 text-lg font-extrabold text-pink-700"><span>الصافي المطلوب:</span><span id="cart-total">0.00 ج.م</span></div>
-                    <button onclick="completeSale()" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-lg shadow transition duration-200 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> إتمام البيع وتسجيل التاريخ</button>
                 </div>
+            </div>
+
+            <!-- منتجات التجميل والعطور في الأسفل -->
+            <div class="bg-white p-4 rounded-xl shadow">
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
+                    <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i class="fa-solid fa-basket-shopping text-pink-600"></i> منتجات التجميل والعطور (انقر للإضافة للفاتورة)</h2>
+                    <input type="text" id="pos-search" oninput="filterPOSProducts()" placeholder="ابحث باسم المنتج، الماركة، أو القسم..." class="w-full sm:w-72 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500">
+                </div>
+                <div id="pos-products-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-[400px] overflow-y-auto p-1"></div>
             </div>
         </div>
 
@@ -223,7 +228,7 @@
             </div>
         </div>
 
-        <!-- 6. REPORTS & BACKUP TAB (Includes Legacy Import) -->
+        <!-- 6. REPORTS & BACKUP TAB -->
         <div id="tab-reports" class="tab-content">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div class="bg-white p-4 rounded-xl shadow">
@@ -246,7 +251,6 @@
                             <i class="fa-solid fa-upload"></i> استعادة نسخة احتياطية
                             <input type="file" id="backup-file" accept=".json" onchange="importBackup(event)" class="hidden">
                         </label>
-                        <!-- زر استيراد من برنامج قديم -->
                         <label class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-lg text-sm transition flex items-center justify-center gap-2 cursor-pointer">
                             <i class="fa-solid fa-file-arrow-down"></i> استيراد منتجات من برنامج قديم (JSON/CSV)
                             <input type="file" id="legacy-file" accept=".json,.csv" onchange="importLegacyData(event)" class="hidden">
@@ -325,7 +329,7 @@
         function loginAs(role) {
             if(role === 'admin') {
                 let pass = prompt('أدخل كلمة سر المدير:');
-                if(pass !== '16666') { alert('كلمة السر غير صحيحة!'); return; }
+                if(pass !== '1234') { alert('كلمة السر غير صحيحة!'); return; }
             }
             checkDeviceLock(role);
             currentRole = role;
@@ -388,7 +392,6 @@
             reader.readAsText(file);
         }
 
-        // دالة استيراد بيانات برنامج المبيعات القديم
         function importLegacyData(event) {
             let file = event.target.files[0];
             if (!file) return;
